@@ -8,7 +8,7 @@ echo "`nChecking for installed packages..."
 # Paths and file names
 $gccarm_path = 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/'
 $gccarm_file = 'gcc-arm-none-eabi-10.3-2021.10-win32.exe'
-$gccarm_name = 'GCC-ARM 10.3-2021.10'
+$gccarm_name = 'GNU Arm Embedded Toolchain'
 $gccarm_hash = '3BEBF304C59F9CC9F544EE5ED38B27DF3019177B0548627C97F5F8BB02300395'
 
 $cmake_path = 'https://github.com/Kitware/CMake/releases/download/v3.21.4'
@@ -28,9 +28,24 @@ function Is-ProgramInstalled($programName) {
     return $installed -ne $null
 }
 
-$gccarm_installed = Is-ProgramInstalled "GNU Tools for ARM Embedded Processors"
-$cmake_installed = Is-ProgramInstalled "CMake"
-$termite_installed = Is-ProgramInstalled "Termite"
+# Function to check if a directory exists
+function Check-Directory {
+    param (
+        [string]$directoryPath
+    )
+
+    if (Test-Path $directoryPath -PathType Container) {
+        Write-Output "The directory $directoryPath exists."
+        return $true
+    } else {
+        Write-Output "The directory $directoryPath does not exist."
+        return $false
+    }
+}
+
+$gccarm_installed = Check-Directory "C:\Program Files (x86)\GNU Arm Embedded Toolchain"
+$cmake_installed = Get-Command cmake -ErrorAction SilentlyContinue
+$termite_installed = Check-Directory "C:\Program Files (x86)\Termite"
 
 if ($gccarm_installed -and $cmake_installed -and $termite_installed) {
     echo "All required packages are already installed."
