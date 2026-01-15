@@ -21,3 +21,13 @@ Thumbs.db
 
 # Documentation/Artifacts (if not to be tracked)
 # artifacts/
+# Logs
+*.log
+err.txt
+
+# Visual Studio
+.vs/
+.history/
+MXChip/AZ3166/build.log
+MXChip/AZ3166/build.log
+MXChip/AZ3166/build.log

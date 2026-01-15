@@ -8,10 +8,18 @@
 #include "nxd_dns.h"
 
 extern NX_IP nx_ip;
-extern NX_PACKET_POOL nx_pool;
+extern NX_PACKET_POOL nx_pool[2];
 extern NX_DNS nx_dns_client;
 
-UINT network_init(VOID (*ip_link_driver)(struct NX_IP_DRIVER_STRUCT*));
+typedef enum
+{
+    None         = 0,
+    WEP          = 1,
+    WPA_PSK_TKIP = 2,
+    WPA2_PSK_AES = 3
+} WiFi_Mode;
+
+UINT network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode);
 UINT network_connect();
 
 #endif // _NETWORKING_H

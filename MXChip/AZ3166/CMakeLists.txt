@@ -27,9 +27,8 @@ include(utilities)
 # CXX enables IntelliSense only. Sources are still compiled as C.
 project(mxchip_azure_iot C CXX ASM)
 
-# Disable common networking component, MXCHIP has it's own
-set(DISABLE_COMMON_NETWORK true)
+set(DISABLE_COMMON_NETWORK ON)
 
-add_subdirectory(${SHARED_SRC_DIR} shared_src)
 add_subdirectory(lib)
+add_subdirectory(${SHARED_SRC_DIR} shared_src)
 add_subdirectory(app)

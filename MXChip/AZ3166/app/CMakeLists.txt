@@ -12,17 +12,19 @@ set(SOURCES
     main.c
     simple_sensor.c
     sensor_display.c
+    mqtt_manager.c
+    wwd_networking.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
-    # azrtos::netxduo
+    azrtos::netxduo
 
     stm32cubef4
     mxchip_bsp
-    # wiced_sdk
+    wiced_sdk
     app_common
     # jsmn
 )
@@ -30,6 +32,11 @@ target_link_libraries(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} 
     PUBLIC 
         .
+        ../../../shared/src
+        ../../../shared/lib/netxduo/addons/mqtt
+        ../../../shared/lib/netxduo/common/inc
+        ../../../shared/lib/netxduo/nx_secure
+        ../lib/wiced_sdk/inc
 )
 
 target_link_directories(${PROJECT_NAME} 

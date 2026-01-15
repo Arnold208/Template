@@ -169,3 +169,18 @@ void Display_Mag_Screen(float mx, float my, float mz, float temp)
         t_int,
         t_frac < 0 ? -t_frac : t_frac);
 }
+
+void Display_MQTT_Stats(int pub_count, int sub_count)
+{
+    char buffer[32];
+
+    screen_print("MQTT Status", L0);
+    screen_print("   Connected   ", L1);
+
+    snprintf(buffer, sizeof(buffer), "P: %d   S: %d", pub_count, sub_count);
+    screen_print(buffer, L2);
+
+    screen_print("               ", L3);
+
+    printf("[MQTT Stats] Pub: %d | Sub: %d\r\n", pub_count, sub_count);
+}

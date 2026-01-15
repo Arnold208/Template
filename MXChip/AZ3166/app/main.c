@@ -6,88 +6,71 @@
  * @date    2026-01-15
  * @brief   Simplified main application for MXChip Sensor Display.
  ******************************************************************************
- * @attention
- *
- * <h2><center>&copy; COPYRIGHT(c) 2026 Microsoft Corporation</center></h2>
- *
- * Redistribution and use in source and binary forms, with or without modification,
- * are permitted provided that the following conditions are met:
- *   1. Redistributions of source code must retain the above copyright notice,
- *      this list of conditions and the following disclaimer.
- *   2. Redistributions in binary form must reproduce the above copyright notice,
- *      this list of conditions and the following disclaimer in the documentation
- *      and/or other materials provided with the distribution.
- *   3. Neither the name of Microsoft Corporation nor the names of its contributors
- *      may be used to endorse or promote products derived from this software
- *      without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- ******************************************************************************
  */
 
+#include "app_config.h"
 #include "board_init.h"
 #include "screen.h"
 #include "sensor_display.h"
 #include "simple_sensor.h"
 #include "tx_api.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/**
- * @file main.c
- * @brief Simplified main application for MXChip Sensor Display.
- *
- * This file demonstrates how to use the 'simple_sensor' and 'sensor_display'
- * modules to read and show data without complex code.
- */
+#include "mqtt_manager.h"
 
+// --- ThreadX Definitions ---
+#define APP_THREAD_STACK_SIZE 4096
+#define APP_THREAD_PRIORITY   4
+
+TX_THREAD app_thread;
+ULONG app_thread_stack[APP_THREAD_STACK_SIZE / sizeof(ULONG)];
+
+// --- Display State ---
 volatile int current_screen     = 0;
 volatile uint8_t screen_changed = 0;
+
+// --- Button Flags for MQTT ---
+volatile bool button_a_flag = false;
+volatile bool button_b_flag = false;
 
 // --- Button Callbacks ---
 void button_a_callback()
 {
-    // Cycle to next screen (0 -> 1 -> 2 -> 3 -> 0)
+    // Screen Navigation
     current_screen++;
-    if (current_screen > 3)
+    if (current_screen > 4) // Updated for 5 screens
         current_screen = 0;
     screen_changed = 1;
+
+    // Trigger MQTT Publish
+    button_a_flag = true;
 }
 
 void button_b_callback()
 {
-    // Cycle to previous screen
+    // Screen Navigation
     current_screen--;
     if (current_screen < 0)
-        current_screen = 3;
+        current_screen = 4; // Updated for 5 screens
     screen_changed = 1;
+
+    // Trigger MQTT Publish
+    button_b_flag = true;
 }
 
 // --- Display Update Logic ---
 void update_display()
 {
-    // 1. Clear the screen to prepare for new data
     screen_clear();
 
-    // 2. Decide what to show based on the current screen number
     switch (current_screen)
     {
         case 0:
         {
-            // Easy: Read float values
             float pressure = Sensor_ReadPressure();
             float temp     = Sensor_ReadTemperature();
-
-            // Easy: Display them
             Display_Pressure_Screen(pressure, temp);
             break;
         }
@@ -95,18 +78,14 @@ void update_display()
         {
             float humidity = Sensor_ReadHumidity();
             float temp     = Sensor_ReadTemperature();
-
             Display_Humidity_Screen(humidity, temp);
             break;
         }
         case 2:
         {
             float ax, ay, az, gx, gy, gz;
-
-            // Read 3-axis data into variables
             Sensor_ReadAccel(&ax, &ay, &az);
             Sensor_ReadGyro(&gx, &gy, &gz);
-
             Display_AccelGyro_Screen(ax, ay, az, gx, gy, gz);
             break;
         }
@@ -114,10 +93,15 @@ void update_display()
         {
             float mx, my, mz;
             float temp = Sensor_ReadTemperature();
-
             Sensor_ReadMag(&mx, &my, &mz);
-
             Display_Mag_Screen(mx, my, mz, temp);
+            break;
+        }
+        case 4:
+        {
+            int pub = MQTT_Get_Publish_Count();
+            int sub = MQTT_Get_Receive_Count();
+            Display_MQTT_Stats(pub, sub);
             break;
         }
     }
@@ -125,13 +109,21 @@ void update_display()
     screen_changed = 0;
 }
 
-// --- Main Entry Point ---
-int main(void)
+// --- Application Thread Entry ---
+void app_thread_entry(ULONG parameter)
 {
-    // 1. Initialize Board (Buttons, LEDs, I2C, Serial, etc.)
-    board_init();
+    printf("Starting Modular Sensor Display (ThreadX)...\n");
 
-    printf("Starting Modular Sensor Display...\n");
+    // 1. Initialize Cloud Connection
+    // Now running inside a thread, so semaphores/mutexes will work.
+    if (MQTT_Init())
+    {
+        printf("Cloud Online.\n");
+    }
+    else
+    {
+        printf("Cloud Connection Failed. Running Offline.\n");
+    }
 
     uint32_t last_tick = 0;
 
@@ -141,13 +133,102 @@ int main(void)
     // 2. Data Loop
     while (1)
     {
-        // Update if button pressed OR every 2 seconds
-        if (screen_changed || (HAL_GetTick() - last_tick > 2000))
+        // Process MQTT Messages
+        MQTT_Check_Message();
+
+        // Check if screen needs update (button pressed)
+        if (screen_changed)
         {
-            last_tick = HAL_GetTick();
             update_display();
         }
+
+        // --- Handle Button Presses (Deferred from ISR) ---
+        if (button_a_flag)
+        {
+            button_a_flag = false;
+            MQTT_Publish(MQTT_TOPIC_BUTTON_A,
+                "{\"buttonA\": "
+                "\"PRESSED\"}");
+        }
+
+        if (button_b_flag)
+        {
+            button_b_flag = false;
+            MQTT_Publish(MQTT_TOPIC_BUTTON_B,
+                "{\"buttonB\": "
+                "\"PRESSED\"}");
+        }
+
+        // Example: Publish Sensor Data every 5 seconds
+        // Use HAL_GetTick or tx_time_get
+        if (HAL_GetTick() - last_tick > 5000)
+        {
+            last_tick = HAL_GetTick();
+
+            char payload[128];
+            float temp = Sensor_ReadTemperature();
+            snprintf(payload,
+                sizeof(payload),
+                "{\"device\": \"%s\", \"temp\": %d.%02d, \"status\": \"active\"}",
+                MQTT_CLIENT_ID,
+                (int)temp,
+                abs((int)((temp - (int)temp) * 100)));
+
+            if (MQTT_Publish(MQTT_PUB_TOPIC, payload))
+            {
+                printf("Data sent to %s\r\n", MQTT_PUB_TOPIC);
+            }
+
+            const char* last_cmd = MQTT_Get_Last_Message();
+            if (strlen(last_cmd) > 0)
+            {
+                screen_print((char*)last_cmd, L1);
+            }
+
+            // Periodically refresh display data
+            update_display();
+        }
+
+        // Sleep to yield control
+        tx_thread_sleep(10); // 10 ticks (approx 100ms)
     }
+}
+
+// --- Application Define (Called by ThreadX) ---
+void tx_application_define(void* first_unused_memory)
+{
+    UINT status;
+
+    // Enable SysTick for HAL_GetTick if needed, though usually handled by low level init.
+    // However, ThreadX timer interrupt drives the scheduler.
+
+    // Create Application Thread
+    status = tx_thread_create(&app_thread,
+        "App Thread",
+        app_thread_entry,
+        0,
+        app_thread_stack,
+        APP_THREAD_STACK_SIZE,
+        APP_THREAD_PRIORITY,
+        APP_THREAD_PRIORITY,
+        TX_NO_TIME_SLICE,
+        TX_AUTO_START);
+
+    if (status != TX_SUCCESS)
+    {
+        printf("ERROR: Thread creation failed (0x%02X)\n", status);
+    }
+}
+
+// --- Main Entry Point ---
+int main(void)
+{
+    // 1. Initialize Board (Buttons, LEDs, I2C, Serial, etc.)
+    board_init();
+
+    // 2. Start ThreadX Kernel
+    // This function never returns. It jumps to tx_application_define.
+    tx_kernel_enter();
 
     return 0;
 }

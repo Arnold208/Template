@@ -26,7 +26,8 @@
 
 #define DHCP_WAIT_TIME_TICKS (60 * TX_TIMER_TICKS_PER_SECOND)
 
-#define WIFI_COUNTRY WICED_COUNTRY_UNITED_STATES
+// Reference used WICED_COUNTRY_WORLD_WIDE_XX
+#define WIFI_COUNTRY WICED_COUNTRY_WORLD_WIDE_XX
 
 static UCHAR netx_ip_stack[NETX_IP_STACK_SIZE];
 static UCHAR netx_tx_pool_stack[NETX_TX_POOL_SIZE];
@@ -57,6 +58,7 @@ static void print_address(CHAR* preable, ULONG address)
 static UINT wifi_init()
 {
     wiced_mac_t mac;
+    wwd_result_t wiced_res;
 
     printf("\r\nInitializing WiFi\r\n");
 
@@ -74,9 +76,10 @@ static UINT wifi_init()
     }
 
     // Set country
-    if (wwd_management_wifi_on(WIFI_COUNTRY) != WWD_SUCCESS)
+    wiced_res = wwd_management_wifi_on(WIFI_COUNTRY);
+    if (wiced_res != WWD_SUCCESS)
     {
-        printf("ERROR: wwd_management_wifi_on\r\n");
+        printf("ERROR: wwd_management_wifi_on failed (0x%08X)\r\n", wiced_res);
         return NX_NOT_SUCCESSFUL;
     }
 
@@ -294,32 +297,6 @@ UINT network_init(CHAR* ssid, CHAR* password, WiFi_Mode mode)
         printf("ERROR: nx_dns_create (0x%08x)\r\n", status);
     }
 
-    /* Use the packet pool here
-    #ifdef NX_DNS_CLIENT_USER_CREATE_PACKET_POOL
-    else if ((status = nx_dns_packet_pool_set(&nx_dns_client, nx_ip.nx_ip_default_packet_pool)))
-    {
-        nx_dns_delete(&nx_dns_client);
-        nx_dhcp_delete(&nx_dhcp_client);
-        nx_ip_delete(&nx_ip);
-        nx_packet_pool_delete(&nx_pool[0]);
-        nx_packet_pool_delete(&nx_pool[1]);
-        printf("ERROR: nx_dns_packet_pool_set (%0x08)\r\n", status);
-    }
-    #endif
-    */
-
-    /* Initialize the SNTP client (commented out as header might be missing or faulty)
-    else if ((status = sntp_init()))
-    {
-        printf("ERROR: Failed to init the SNTP client (0x%08x)\r\n", status);
-        nx_dns_delete(&nx_dns_client);
-        nx_dhcp_delete(&nx_dhcp_client);
-        nx_ip_delete(&nx_ip);
-        nx_packet_pool_delete(&nx_pool[0]);
-        nx_packet_pool_delete(&nx_pool[1]);
-    }
-    */
-
     // Initialize TLS
     else
     {
@@ -392,14 +369,6 @@ UINT network_connect()
     {
         printf("ERROR: DNS client setup failed\n");
     }
-
-    /* Sync SNTP time
-    status = sntp_sync();
-    if (status != NX_SUCCESS)
-    {
-        printf("ERROR: Failed to sync SNTP time (0x%08x)\n", status);
-    }
-    */
 
     return status;
 }

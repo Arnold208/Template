@@ -72,4 +72,11 @@ void Display_AccelGyro_Screen(float ax, float ay, float az, float gx, float gy, 
  */
 void Display_Mag_Screen(float mx, float my, float mz, float temp);
 
+/**
+ * @brief Displays MQTT publish and receive statistics.
+ * @param pub_count Number of messages published
+ * @param sub_count Number of messages received
+ */
+void Display_MQTT_Stats(int pub_count, int sub_count);
+
 #endif

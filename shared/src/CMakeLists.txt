@@ -44,6 +44,6 @@ target_include_directories(${TARGET}
 
 target_link_libraries(${TARGET}
     azrtos::threadx
-    # azrtos::netxduo
+    azrtos::netxduo
     # jsmn
 )
