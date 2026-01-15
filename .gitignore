@@ -21,3 +21,5 @@ Thumbs.db
 
 # Documentation/Artifacts (if not to be tracked)
 # artifacts/
+MXChip/AZ3166/cmake_error.log
+MXChip/AZ3166/err.txt
