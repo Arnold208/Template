@@ -1,7 +1,8 @@
 /* Copyright (c) Microsoft Corporation.
    Licensed under the MIT License. */
 #include <stdint.h>  
-#include "ssd1306.h"
+#include <stdint.h>  
+#include "../lib/mxchip_bsp/ssd1306/ssd1306.h" // Use relative path to avoid include issues
 
 #ifndef _SCREEN_H
 #define _SCREEN_H

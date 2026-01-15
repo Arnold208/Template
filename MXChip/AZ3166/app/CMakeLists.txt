@@ -10,7 +10,8 @@ set(SOURCES
     console.c
     screen.c
     main.c
- 
+    simple_sensor.c
+    sensor_display.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

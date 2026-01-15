@@ -1,0 +1,23 @@
+# Build directories
+build/
+*.bin
+*.elf
+*.hex
+*.map
+*.lst
+*.obj
+*.o
+*.a
+*.dep
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Documentation/Artifacts (if not to be tracked)
+# artifacts/
