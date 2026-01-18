@@ -79,6 +79,9 @@ void board_init(void)
     /* Initialize STM32F412 HAL library.  */
     HAL_Init();
 
+    /* Give sensors time to power up and stabilize */
+    HAL_Delay(2500);
+
     /* Configure the system clock to 96 MHz.  */
     SystemClock_Config();
 
@@ -94,11 +97,11 @@ void board_init(void)
     // Initialize I2C
     I2C1_Init();
 
-    // Discover and intialize sensors
-    Init_MEM1_Sensors();
-
-    // Discover and intialize OLED screen
+    // Discover and intialize OLED screen and scan bus
     Init_Screen();
+
+    // Discover and intialize specific sensors
+    Init_MEM1_Sensors();
 }
 
 /**
@@ -285,7 +288,7 @@ static void I2C1_Init(void)
     I2cHandle.Init.ClockSpeed      = I2C_SPEEDCLOCK;
     I2cHandle.Init.DutyCycle       = I2C_DUTYCYCLE;
     I2cHandle.Init.OwnAddress1     = I2C_ADDRESS;
-    I2cHandle.Init.AddressingMode  = I2C_ADDRESSINGMODE_10BIT;
+    I2cHandle.Init.AddressingMode  = I2C_ADDRESSINGMODE_7BIT;
     I2cHandle.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
     I2cHandle.Init.OwnAddress2     = 0xFF;
     I2cHandle.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
@@ -319,7 +322,7 @@ static void UART_Console_Init(void)
     }
 }
 
-//ystatic int val;
+// ystatic int val;
 
 __weak void button_a_callback()
 {

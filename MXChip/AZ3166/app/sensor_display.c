@@ -184,3 +184,40 @@ void Display_MQTT_Stats(int pub_count, int sub_count)
 
     printf("[MQTT Stats] Pub: %d | Sub: %d\r\n", pub_count, sub_count);
 }
+
+void Display_Unified_Telemetry(float temp, float humidity, float pressure)
+{
+    char buffer[32];
+
+    // Temp: 25.5C
+    snprintf(buffer, sizeof(buffer), "Temp: %d.%1d C", (int)temp, abs((int)((temp - (int)temp) * 10)));
+    screen_print(buffer, L0);
+
+    // Humid: 45.2%
+    snprintf(buffer, sizeof(buffer), "Humid: %d.%1d %%", (int)humidity, abs((int)((humidity - (int)humidity) * 10)));
+    screen_print(buffer, L1);
+
+    // Press: 1013.2hPa
+    snprintf(buffer,
+        sizeof(buffer),
+        "Pres: %d.%d hPa",
+        (int)pressure,
+        (int)pressure % 1); // Simple fallback for pressure frac
+    screen_print(buffer, L2);
+
+    screen_print("Mode: Telemetry", L3);
+}
+
+void Display_Startup_Status(const char* status, const char* detail)
+{
+    screen_clear();
+    screen_print("MXCHIP STARTUP", L0);
+
+    if (status)
+        screen_print((char*)status, L1);
+
+    if (detail)
+        screen_print((char*)detail, L2);
+
+    screen_print("Please wait...", L3);
+}

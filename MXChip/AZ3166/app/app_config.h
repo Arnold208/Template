@@ -11,8 +11,8 @@
 
 // --- WiFi Settings ---
 // REPLACE WITH YOUR WIFI CREDENTIALS
-#define WIFI_SSID       "LOGICHUB-IOT-2.4G"
-#define WIFI_PASSWORD   "L0g1chubI0T@2025!!2G"
+#define WIFI_SSID       ""
+#define WIFI_PASSWORD   ""
 
 // Set to 1 to use Hostname, 0 to use IP Address
 #define MQTT_USE_HOSTNAME  0
@@ -26,7 +26,6 @@
 #define MQTT_BROKER_PORT  1883
 
 #define MQTT_CLIENT_ID    "MXChip_Sensor_Node"
-#define MQTT_PUB_TOPIC    "mxchip/data"     // Default publish topic
 #define MQTT_PUB_TOPIC    "mxchip/data"     // Default publish topic
 #define MQTT_SUB_TOPIC    "mxchip/commands" // Default subscribe topic
 

@@ -14,6 +14,7 @@ set(SOURCES
     sensor_display.c
     mqtt_manager.c
     wwd_networking.c
+    images.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

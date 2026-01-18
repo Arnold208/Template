@@ -3,8 +3,6 @@
 
 #include "screen.h"
 
-// #include "ssd1306.h" // Removed, already in screen.h with correct path
-
 void screen_print(char* str, LINE_NUM line)
 {
     ssd1306_SetCursor(2, line);
@@ -12,7 +10,6 @@ void screen_print(char* str, LINE_NUM line)
     ssd1306_UpdateScreen();
 }
 
-// Add this function to screen.h
 void screen_clear()
 {
     ssd1306_Fill(Black);
@@ -43,34 +40,6 @@ void screen_printn(const char* str, unsigned int str_length, LINE_NUM line)
     ssd1306_UpdateScreen();
 }
 
-// void draw_youtube_logo(uint8_t x, uint8_t y)
-// {
-//     // Draw the rectangle representing the YouTube logo
-//     ssd1306_DrawRectangle(x, y, x + 30, y + 16, White);
-
-//     // Draw the play button (triangle) inside the rectangle
-//     ssd1306_Line(x + 10, y + 4, x + 10, y + 12, White);
-//     ssd1306_Line(x + 10, y + 4, x + 20, y + 8, White);
-//     ssd1306_Line(x + 20, y + 8, x + 10, y + 12, White);
-
-//     // Update the screen to show the changes
-//     ssd1306_UpdateScreen();
-// }
-
-// void draw_youtube_logo(uint8_t x, uint8_t y)
-// {
-//     // Draw the rectangle representing the YouTube logo
-//     ssd1306_DrawRectangle(x, y, x + 60, y + 32, White);
-
-//     // Draw the play button (triangle) inside the rectangle
-//     ssd1306_Line(x + 20, y + 8, x + 20, y + 24, White);
-//     ssd1306_Line(x + 20, y + 8, x + 40, y + 16, White);
-//     ssd1306_Line(x + 40, y + 16, x + 20, y + 24, White);
-
-//     // Update the screen to show the changes
-//     ssd1306_UpdateScreen();
-// }
-
 void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1)
 {
     // Define logo dimensions
@@ -86,18 +55,34 @@ void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1)
     {
         for (uint8_t j = x; j < x + logo_width; j++)
         {
-            ssd1306_DrawPixel(j, i, White); // Simulate red by filling with white
+            ssd1306_DrawPixel(j, i, White);
         }
     }
 
-    // Draw the outline of the rectangle (optional, if you want a border)
     ssd1306_DrawRectangle(x, y, x + logo_width, y + logo_height, White);
 
-    // Draw the unfilled play button (triangle) inside the rectangle
+    // Draw the play button (triangle)
     ssd1306_Line(x + 20, y + 8, x + 20, y + 24, Black);
     ssd1306_Line(x + 20, y + 8, x + 40, y + 16, Black);
     ssd1306_Line(x + 40, y + 16, x + 20, y + 24, Black);
 
-    // Update the screen to show the changes
+    ssd1306_UpdateScreen();
+}
+
+void screen_draw_bitmap(const unsigned char* bitmap)
+{
+    ssd1306_Fill(Black);
+    for (int y = 0; y < 64; y++)
+    {
+        for (int x = 0; x < 128; x++)
+        {
+            int byte_idx = y * 16 + (x / 8);
+            int bit_idx  = 7 - (x % 8);
+            if (bitmap[byte_idx] & (1 << bit_idx))
+            {
+                ssd1306_DrawPixel(x, y, White);
+            }
+        }
+    }
     ssd1306_UpdateScreen();
 }

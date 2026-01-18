@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "images.h"
 #include "mqtt_manager.h"
 
 // --- ThreadX Definitions ---
@@ -28,7 +29,7 @@ TX_THREAD app_thread;
 ULONG app_thread_stack[APP_THREAD_STACK_SIZE / sizeof(ULONG)];
 
 // --- Display State ---
-volatile int current_screen     = 0;
+volatile int current_screen     = 0; // 0: Logo, 1: Telemetry
 volatile uint8_t screen_changed = 0;
 
 // --- Button Flags for MQTT ---
@@ -38,10 +39,8 @@ volatile bool button_b_flag = false;
 // --- Button Callbacks ---
 void button_a_callback()
 {
-    // Screen Navigation
-    current_screen++;
-    if (current_screen > 4) // Updated for 5 screens
-        current_screen = 0;
+    // Switch to Logo Screen
+    current_screen = 0;
     screen_changed = 1;
 
     // Trigger MQTT Publish
@@ -50,10 +49,8 @@ void button_a_callback()
 
 void button_b_callback()
 {
-    // Screen Navigation
-    current_screen--;
-    if (current_screen < 0)
-        current_screen = 4; // Updated for 5 screens
+    // Switch to Telemetry Screen
+    current_screen = 1;
     screen_changed = 1;
 
     // Trigger MQTT Publish
@@ -68,40 +65,16 @@ void update_display()
     switch (current_screen)
     {
         case 0:
-        {
-            float pressure = Sensor_ReadPressure();
-            float temp     = Sensor_ReadTemperature();
-            Display_Pressure_Screen(pressure, temp);
+            // Display NEW MQTT Logo from images.c
+            screen_draw_bitmap(epd_bitmap_Mqtt);
             break;
-        }
+
         case 1:
         {
-            float humidity = Sensor_ReadHumidity();
             float temp     = Sensor_ReadTemperature();
-            Display_Humidity_Screen(humidity, temp);
-            break;
-        }
-        case 2:
-        {
-            float ax, ay, az, gx, gy, gz;
-            Sensor_ReadAccel(&ax, &ay, &az);
-            Sensor_ReadGyro(&gx, &gy, &gz);
-            Display_AccelGyro_Screen(ax, ay, az, gx, gy, gz);
-            break;
-        }
-        case 3:
-        {
-            float mx, my, mz;
-            float temp = Sensor_ReadTemperature();
-            Sensor_ReadMag(&mx, &my, &mz);
-            Display_Mag_Screen(mx, my, mz, temp);
-            break;
-        }
-        case 4:
-        {
-            int pub = MQTT_Get_Publish_Count();
-            int sub = MQTT_Get_Receive_Count();
-            Display_MQTT_Stats(pub, sub);
+            float humidity = Sensor_ReadHumidity();
+            float pressure = Sensor_ReadPressure();
+            Display_Unified_Telemetry(temp, humidity, pressure);
             break;
         }
     }
@@ -112,23 +85,29 @@ void update_display()
 // --- Application Thread Entry ---
 void app_thread_entry(ULONG parameter)
 {
-    printf("Starting Modular Sensor Display (ThreadX)...\n");
+    printf("Starting MXChip Sensor Node...\n");
 
     // 1. Initialize Cloud Connection
-    // Now running inside a thread, so semaphores/mutexes will work.
+    Display_Startup_Status("Connecting...", "WiFi + MQTT");
+
     if (MQTT_Init())
     {
         printf("Cloud Online.\n");
+        Display_Startup_Status("Connected!", "MQTT Online");
+        HAL_Delay(1000);
     }
     else
     {
         printf("Cloud Connection Failed. Running Offline.\n");
+        Display_Startup_Status("Offline Mode", "MQTT Failed");
+        HAL_Delay(2000);
     }
 
-    uint32_t last_tick = 0;
-
-    // Show first screen immediately
+    // Set initial screen to Logo
+    current_screen = 0;
     update_display();
+
+    uint32_t last_tick = 0;
 
     // 2. Data Loop
     while (1)
@@ -146,17 +125,13 @@ void app_thread_entry(ULONG parameter)
         if (button_a_flag)
         {
             button_a_flag = false;
-            MQTT_Publish(MQTT_TOPIC_BUTTON_A,
-                "{\"buttonA\": "
-                "\"PRESSED\"}");
+            MQTT_Publish(MQTT_TOPIC_BUTTON_A, "{\"event\": \"ButtonA_Pressed\"}");
         }
 
         if (button_b_flag)
         {
             button_b_flag = false;
-            MQTT_Publish(MQTT_TOPIC_BUTTON_B,
-                "{\"buttonB\": "
-                "\"PRESSED\"}");
+            MQTT_Publish(MQTT_TOPIC_BUTTON_B, "{\"event\": \"ButtonB_Pressed\"}");
         }
 
         // Example: Publish Sensor Data every 5 seconds
