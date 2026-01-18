@@ -14,6 +14,7 @@ set(SOURCES
     sensor_display.c
     mqtt_manager.c
     wwd_networking.c
+    images.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -36,6 +37,7 @@ target_include_directories(${PROJECT_NAME}
         ../../../shared/lib/netxduo/addons/mqtt
         ../../../shared/lib/netxduo/common/inc
         ../../../shared/lib/netxduo/nx_secure
+        ../../../shared/lib/netxduo/nx_secure/inc
         ../lib/wiced_sdk/inc
 )
 

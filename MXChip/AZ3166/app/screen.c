@@ -101,3 +101,25 @@ void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1)
     // Update the screen to show the changes
     ssd1306_UpdateScreen();
 }
+
+void screen_draw_bitmap(int x, int y, const unsigned char* bitmap, int w, int h)
+{
+    for (int i = 0; i < h; i++)
+    {
+        for (int j = 0; j < w; j++)
+        {
+            // Assuming 1 bit per pixel, row-major
+            int byte_idx = (i * ((w + 7) / 8)) + (j / 8);
+            int bit_idx  = 7 - (j % 8);
+            if (bitmap[byte_idx] & (1 << bit_idx))
+            {
+                ssd1306_DrawPixel(x + j, y + i, White);
+            }
+            else
+            {
+                ssd1306_DrawPixel(x + j, y + i, Black);
+            }
+        }
+    }
+    ssd1306_UpdateScreen();
+}

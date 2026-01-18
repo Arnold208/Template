@@ -152,17 +152,33 @@ static UINT dhcp_connect(void)
 static UINT dns_connect()
 {
     UINT status;
-    printf("\nInitializing Static DNS Configuration\n");
+    ULONG dns_server_address[NETX_DNS_COUNT];
+    UINT dns_server_count = sizeof(dns_server_address);
 
-    // Manually add Google's public DNS server (8.8.8.8)
-    status = nx_dns_server_add(&nx_dns_client, IP_ADDRESS(8, 8, 8, 8));
-    if (status != NX_SUCCESS)
+    printf("\nInitializing DNS Configuration...\n");
+
+    // Check if DHCP already provided DNS servers
+    status = nx_dhcp_user_option_retrieve(
+        &nx_dhcp_client, NX_DHCP_OPTION_DNS_SVR, (UCHAR*)dns_server_address, &dns_server_count);
+    if (status == NX_SUCCESS && dns_server_count >= 4)
     {
-        printf("ERROR: nx_dns_server_add (0x%08x)\n", status);
-        return status;
+        for (UINT i = 0; i < dns_server_count / 4; i++)
+        {
+            status = nx_dns_server_add(&nx_dns_client, dns_server_address[i]);
+            if (status == NX_SUCCESS)
+            {
+                print_address("DHCP DNS Server", dns_server_address[i]);
+            }
+        }
     }
 
-    print_address("DNS Server", IP_ADDRESS(8, 8, 8, 8));
+    // Always add Google's public DNS as a fallback
+    status = nx_dns_server_add(&nx_dns_client, IP_ADDRESS(8, 8, 8, 8));
+    if (status == NX_SUCCESS)
+    {
+        print_address("Fallback DNS Server", IP_ADDRESS(8, 8, 8, 8));
+    }
+
     return NX_SUCCESS;
 }
 

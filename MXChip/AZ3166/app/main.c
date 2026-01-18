@@ -18,7 +18,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "images.h"
 #include "mqtt_manager.h"
+#include "networking.h"
 
 // --- ThreadX Definitions ---
 #define APP_THREAD_STACK_SIZE 4096
@@ -38,72 +40,43 @@ volatile bool button_b_flag = false;
 // --- Button Callbacks ---
 void button_a_callback()
 {
-    // Screen Navigation
-    current_screen++;
-    if (current_screen > 4) // Updated for 5 screens
+    // Switch to Logo Screen
+    if (current_screen != 0)
+    {
         current_screen = 0;
-    screen_changed = 1;
-
-    // Trigger MQTT Publish
+        screen_changed = 1;
+    }
     button_a_flag = true;
 }
 
 void button_b_callback()
 {
-    // Screen Navigation
-    current_screen--;
-    if (current_screen < 0)
-        current_screen = 4; // Updated for 5 screens
-    screen_changed = 1;
-
-    // Trigger MQTT Publish
+    // Switch to Telemetry Screen
+    if (current_screen != 1)
+    {
+        current_screen = 1;
+        screen_changed = 1;
+    }
     button_b_flag = true;
 }
 
-// --- Display Update Logic ---
+// --- Display Update Helper ---
 void update_display()
 {
     screen_clear();
 
-    switch (current_screen)
+    if (current_screen == 0)
     {
-        case 0:
-        {
-            float pressure = Sensor_ReadPressure();
-            float temp     = Sensor_ReadTemperature();
-            Display_Pressure_Screen(pressure, temp);
-            break;
-        }
-        case 1:
-        {
-            float humidity = Sensor_ReadHumidity();
-            float temp     = Sensor_ReadTemperature();
-            Display_Humidity_Screen(humidity, temp);
-            break;
-        }
-        case 2:
-        {
-            float ax, ay, az, gx, gy, gz;
-            Sensor_ReadAccel(&ax, &ay, &az);
-            Sensor_ReadGyro(&gx, &gy, &gz);
-            Display_AccelGyro_Screen(ax, ay, az, gx, gy, gz);
-            break;
-        }
-        case 3:
-        {
-            float mx, my, mz;
-            float temp = Sensor_ReadTemperature();
-            Sensor_ReadMag(&mx, &my, &mz);
-            Display_Mag_Screen(mx, my, mz, temp);
-            break;
-        }
-        case 4:
-        {
-            int pub = MQTT_Get_Publish_Count();
-            int sub = MQTT_Get_Receive_Count();
-            Display_MQTT_Stats(pub, sub);
-            break;
-        }
+        // Screen 0: Event Grid Logo
+        screen_draw_bitmap(0, 0, epd_bitmap_event_grid_header_tall, 128, 64);
+    }
+    else if (current_screen == 1)
+    {
+        // Screen 1: Unified Telemetry
+        float temp     = Sensor_ReadTemperature();
+        float humidity = Sensor_ReadHumidity();
+        float pressure = Sensor_ReadPressure();
+        Display_Unified_Telemetry(temp, humidity, pressure);
     }
 
     screen_changed = 0;
@@ -112,18 +85,57 @@ void update_display()
 // --- Application Thread Entry ---
 void app_thread_entry(ULONG parameter)
 {
-    printf("Starting Modular Sensor Display (ThreadX)...\n");
+    printf("Starting MXChip Azure Event Grid Client...\n");
 
-    // 1. Initialize Cloud Connection
-    // Now running inside a thread, so semaphores/mutexes will work.
-    if (MQTT_Init())
+    // Give hardware time to settle
+    tx_thread_sleep(100);
+
+    // 1. Initial Logo
+    printf("Display: Showing Logo...\n");
+    screen_clear();
+    screen_draw_bitmap(0, 0, epd_bitmap_event_grid_header_tall, 128, 64);
+    tx_thread_sleep(300); // 3 sec
+
+    // 2. WiFi Connection Sequence
+    printf("Display: Initializing WiFi...\n");
+    Display_Startup_Status("WiFi Init", WIFI_SSID);
+
+    // Use WPA2_PSK_AES as default
+    network_init(WIFI_SSID, WIFI_PASSWORD, WPA2_PSK_AES);
+
+    printf("WiFi: Connecting to %s...\n", WIFI_SSID);
+    Display_Startup_Status("Connecting...", WIFI_SSID);
+
+    if (network_connect() == NX_SUCCESS)
     {
-        printf("Cloud Online.\n");
+        printf("WiFi: Connected! Starting MQTT...\n");
+        Display_Startup_Status("Connected!", "Starting MQTT...");
+        tx_thread_sleep(100); // 1 sec
+
+        if (MQTT_Init())
+        {
+            printf("MQTT Online.\n");
+            Display_Startup_Status("Online!", "Event Grid Ready");
+            tx_thread_sleep(200); // 2 sec
+        }
+        else
+        {
+            printf("MQTT Connection Failed.\n");
+            Display_Startup_Status("MQTT Failed", "Check Settings");
+            tx_thread_sleep(300); // 3 sec
+        }
     }
     else
     {
-        printf("Cloud Connection Failed. Running Offline.\n");
+        printf("WiFi Connection Failed.\n");
+        Display_Startup_Status("WiFi Failed", "Offline Mode");
+        tx_thread_sleep(300); // 3 sec
     }
+
+    // Default to Logo Screen after boot
+    current_screen = 0;
+    update_display();
+    printf("App: Loop Started.\n");
 
     uint32_t last_tick = 0;
 
@@ -146,41 +158,43 @@ void app_thread_entry(ULONG parameter)
         if (button_a_flag)
         {
             button_a_flag = false;
-            MQTT_Publish(MQTT_TOPIC_BUTTON_A,
-                "{\"buttonA\": "
-                "\"PRESSED\"}");
+            MQTT_Publish(MQTT_TOPIC_BUTTON_A, "{\"event\": \"buttonA\", \"state\": \"PRESSED\"}");
         }
 
         if (button_b_flag)
         {
             button_b_flag = false;
-            MQTT_Publish(MQTT_TOPIC_BUTTON_B,
-                "{\"buttonB\": "
-                "\"PRESSED\"}");
+            MQTT_Publish(MQTT_TOPIC_BUTTON_B, "{\"event\": \"buttonB\", \"state\": \"PRESSED\"}");
         }
 
         // Example: Publish Sensor Data every 5 seconds
-        // Use HAL_GetTick or tx_time_get
         if (HAL_GetTick() - last_tick > 5000)
         {
             last_tick = HAL_GetTick();
 
-            char payload[128];
-            float temp = Sensor_ReadTemperature();
+            char payload[160];
+            float temp     = Sensor_ReadTemperature();
+            float humidity = Sensor_ReadHumidity();
+            float pressure = Sensor_ReadPressure();
+
             snprintf(payload,
                 sizeof(payload),
-                "{\"device\": \"%s\", \"temp\": %d.%02d, \"status\": \"active\"}",
+                "{\"device\": \"%s\", \"temp\": %d.%02d, \"humidity\": %d.%02d, \"pressure\": %d.%02d}",
                 MQTT_CLIENT_ID,
                 (int)temp,
-                abs((int)((temp - (int)temp) * 100)));
+                abs((int)((temp - (int)temp) * 100)),
+                (int)humidity,
+                abs((int)((humidity - (int)humidity) * 100)),
+                (int)pressure,
+                abs((int)((pressure - (int)pressure) * 100)));
 
             if (MQTT_Publish(MQTT_PUB_TOPIC, payload))
             {
-                printf("Data sent to %s\r\n", MQTT_PUB_TOPIC);
+                printf("Telemetry sent to %s\r\n", MQTT_PUB_TOPIC);
             }
 
             const char* last_cmd = MQTT_Get_Last_Message();
-            if (strlen(last_cmd) > 0)
+            if (last_cmd && strlen(last_cmd) > 0)
             {
                 screen_print((char*)last_cmd, L1);
             }

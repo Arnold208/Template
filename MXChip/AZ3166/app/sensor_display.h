@@ -79,4 +79,14 @@ void Display_Mag_Screen(float mx, float my, float mz, float temp);
  */
 void Display_MQTT_Stats(int pub_count, int sub_count);
 
+/**
+ * @brief Displays Temperature, Humidity, and Pressure on separate rows.
+ */
+void Display_Unified_Telemetry(float temp, float humidity, float pressure);
+
+/**
+ * @brief Displays startup status messages professionally.
+ */
+void Display_Startup_Status(const char* status, const char* detail);
+
 #endif

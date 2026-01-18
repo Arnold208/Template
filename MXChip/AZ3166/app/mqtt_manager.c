@@ -1,156 +1,191 @@
-/**
- ******************************************************************************
- * @file    mqtt_manager.c
- * @author  Microsoft Corporation & Contributors
- * @brief   Simplified MQTT Manager Implementation
- ******************************************************************************
- */
-
 #include "mqtt_manager.h"
 #include "app_config.h"
 #include "board_init.h"
-#include "networking.h"
-#include "nxd_dns.h"
 #include "nxd_mqtt_client.h"
 #include "screen.h"
-#include "wiced_sdk.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#define MQTT_THREAD_PRIORITY 2
+#if MQTT_SECURE_CONNECTION
+#include "nx_secure_tls_api.h"
+#include "user_credentials.h"
 
-// Connection status
+static NX_SECURE_X509_CERT device_certificate;
+static NX_SECURE_X509_CERT root_ca_certificate;
+extern const NX_SECURE_TLS_CRYPTO nx_crypto_tls_ciphers;
+#endif
+
+#include "nxd_dns.h"
+
+// --- Externs ---
+extern NX_IP nx_ip;
+extern NX_PACKET_POOL nx_pool[2];
+extern NX_DNS nx_dns_client;
+
+// --- MQTT Client State ---
+static NXD_MQTT_CLIENT az_mqtt_client;
+static NXD_ADDRESS server_ip;
 static bool is_connected = false;
 
-static NXD_MQTT_CLIENT mqtt_client;
-static UCHAR mqtt_stack[4096];
-static char last_received_topic[128];
-static char last_received_message[256];
-static int publish_count = 0;
-static int receive_count = 0;
+// TLS buffers
+#if MQTT_SECURE_CONNECTION
+static CHAR tls_metadata_buffer[8192];
+static UCHAR tls_packet_buffer[4096 * 4];
+#endif
+
+// MQTT Stack
+static ULONG mqtt_client_stack[2048 / sizeof(ULONG)];
+
+static uint32_t publish_count          = 0;
+static uint32_t receive_count          = 0;
+static char last_received_topic[128]   = {0};
+static char last_received_message[256] = {0};
 
 // Forward declaration
 static void mqtt_message_callback(NXD_MQTT_CLIENT* client_ptr, UINT message_count);
+
+#if MQTT_SECURE_CONNECTION
+// TLS Setup Callback
+static UINT tls_setup_callback(NXD_MQTT_CLIENT* client_ptr,
+    NX_SECURE_TLS_SESSION* tls_session,
+    NX_SECURE_X509_CERT* cert_ptr,
+    NX_SECURE_X509_CERT* trusted_cert_ptr)
+{
+    UINT status;
+
+    // Initialize and create TLS session.
+    printf("Creating TLS Session...\r\n");
+    status = nx_secure_tls_session_create(
+        tls_session, &nx_crypto_tls_ciphers, tls_metadata_buffer, sizeof(tls_metadata_buffer));
+
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: TLS Session Create failed (0x%08X)\r\n", status);
+        return status;
+    }
+
+    // Allocate space for packet reassembly.
+    status = nx_secure_tls_session_packet_buffer_set(tls_session, tls_packet_buffer, sizeof(tls_packet_buffer));
+
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: TLS Packet Buffer Set failed (0x%08X)\r\n", status);
+        return status;
+    }
+
+    // 2. Initialize Device Certificate (with Private Key)
+    status = nx_secure_x509_certificate_initialize(&device_certificate,
+        (UCHAR*)device_cert_der,
+        (USHORT)device_cert_len,
+        NX_NULL,
+        0,
+        (UCHAR*)device_key_der,
+        (USHORT)device_key_len,
+        NX_SECURE_X509_KEY_TYPE_RSA_PKCS1_DER);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: Device Cert Init failed (0x%08X)\r\n", status);
+        return status;
+    }
+
+    // 4. Initialize Root CA
+    status = nx_secure_x509_certificate_initialize(&root_ca_certificate,
+        (UCHAR*)root_ca_der,
+        (USHORT)root_ca_len,
+        NX_NULL,
+        0,
+        NULL,
+        0,
+        NX_SECURE_X509_KEY_TYPE_NONE);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: Root CA Init failed (0x%08X)\r\n", status);
+        return status;
+    }
+
+    // Add device certificate
+    status = nx_secure_tls_local_certificate_add(tls_session, &device_certificate);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: Failed to add device certificate (0x%08X)\r\n", status);
+        return status;
+    }
+
+    // Add root CA
+    status = nx_secure_tls_trusted_certificate_add(tls_session, &root_ca_certificate);
+    if (status != NX_SUCCESS)
+    {
+        printf("ERROR: Failed to add root CA (0x%08X)\r\n", status);
+        return status;
+    }
+
+    return NX_SUCCESS;
+}
+#endif
 
 bool MQTT_Init(void)
 {
     UINT status;
 
-    // Clear screen for initialization status
-    screen_print("Initializing...", L0);
-    screen_print("Network Stack", L1);
+    // 1. WiFi is already initialized in main.c or by calling network_init
 
-    printf("Initializing Network...\r\n");
-
-    // 1. Initialize Network (NetX + WiFi)
-    // Pass SSID, Password, Mode (Assuming WPA2)
-    status = network_init((CHAR*)WIFI_SSID, (CHAR*)WIFI_PASSWORD, WPA2_PSK_AES);
-    if (status != NX_SUCCESS)
-    {
-        printf("ERROR: network_init failed (0x%08X)\r\n", status);
-        screen_print("Net Init Fail", L1);
-        return false;
-    }
-
-    // 2. Connect (WiFi Join + DHCP)
-    screen_print("Connecting WiFi", L0);
-    screen_print((char*)WIFI_SSID, L1);
-
-    printf("Connecting to WiFi: %s\r\n", WIFI_SSID);
-    status = network_connect();
-    if (status != NX_SUCCESS)
-    {
-        printf("ERROR: Failed to connect to WiFi (0x%08X)\r\n", status);
-        screen_print("WiFi Fail", L1);
-        return false;
-    }
-    printf("WiFi Connected! IP Address obtained.\r\n");
-    screen_print("WiFi Connected", L1);
-
-    // 5. MQTT Client Setup
-    status = nxd_mqtt_client_create(&mqtt_client,
-        "MXChipMQTT",
+    // 2. Create MQTT Client
+    status = nxd_mqtt_client_create(&az_mqtt_client,
+        "AZ_MQTT_Client",
         MQTT_CLIENT_ID,
         strlen(MQTT_CLIENT_ID),
         &nx_ip,
-        &nx_pool[0], // Fixed: nx_pool is an extern struct, not array
-        mqtt_stack,
-        sizeof(mqtt_stack),
-        MQTT_THREAD_PRIORITY,
+        &nx_pool[0], // TX Pool
+        (VOID*)mqtt_client_stack,
+        sizeof(mqtt_client_stack),
+        4, // Priority
         NX_NULL,
         0);
 
     if (status != NXD_MQTT_SUCCESS)
     {
-        printf("ERROR: MQTT Create failed (0x%08X)\r\n", status);
-        screen_print("MQTT Create Fail", L2);
+        printf("ERROR: MQTT Client creation failed (0x%08X)\r\n", status);
         return false;
     }
 
-    // 6. Resolve Broker IP
-    // 6. Resolve Broker IP
-    NXD_ADDRESS server_ip;
-    server_ip.nxd_ip_version = NX_IP_VERSION_V4;
-
-#if MQTT_USE_HOSTNAME
-    printf("Resolving Hostname: %s\r\n", MQTT_BROKER_HOSTNAME);
-    screen_print("Resolving DNS", L2);
-    screen_print(MQTT_BROKER_HOSTNAME, L3);
-
-    // DNS Resolution
-    ULONG ip_resolved;
-    status = nx_dns_host_by_name_get(
-        &nx_dns_client, (UCHAR*)MQTT_BROKER_HOSTNAME, &ip_resolved, 5 * TX_TIMER_TICKS_PER_SECOND);
+    // 3. Resolve Broker IP
+    printf("Resolving %s...\r\n", MQTT_BROKER_HOSTNAME);
+    status = nxd_dns_host_by_name_get(
+        &nx_dns_client, (UCHAR*)MQTT_BROKER_HOSTNAME, &server_ip, NX_WAIT_FOREVER, NX_DNS_RR_TYPE_A);
 
     if (status != NX_SUCCESS)
     {
-        printf("ERROR: DNS Resolution failed (0x%08X)\r\n", status);
-        screen_print("DNS Fail", L2);
+        printf("ERROR: IP Resolution failed (0x%08X)\r\n", status);
         return false;
     }
 
-    server_ip.nxd_ip_address.v4 = ip_resolved;
-    printf("Resolved IP: %lu.%lu.%lu.%lu\r\n",
-        (ip_resolved >> 24) & 0xFF,
-        (ip_resolved >> 16) & 0xFF,
-        (ip_resolved >> 8) & 0xFF,
-        (ip_resolved & 0xFF));
+    // 4. Connect
+#if MQTT_SECURE_CONNECTION
+    printf("Connecting to Secure MQTT Broker %s:%d...\r\n", MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT);
+    screen_print("TLS Connecting...", (int)L2);
 
+    status = nxd_mqtt_client_secure_connect(
+        &az_mqtt_client, &server_ip, MQTT_BROKER_PORT, tls_setup_callback, 60, NX_TRUE, NX_WAIT_FOREVER);
 #else
-    int ip0, ip1, ip2, ip3;
-    if (sscanf(MQTT_BROKER_IP_STRING, "%d.%d.%d.%d", &ip0, &ip1, &ip2, &ip3) == 4)
-    {
-        server_ip.nxd_ip_address.v4 = IP_ADDRESS(ip0, ip1, ip2, ip3);
-        printf("Connecting to Broker: %d.%d.%d.%d\r\n", ip0, ip1, ip2, ip3);
-        screen_print("Connecting...", L2);
-        char broker_disp[20];
-        snprintf(broker_disp, sizeof(broker_disp), "%d.%d.%d.%d", ip0, ip1, ip2, ip3);
-        screen_print(broker_disp, L3);
-    }
-    else
-    {
-        printf("ERROR: Invalid IP format in app_config.h\r\n");
-        return false;
-    }
+    printf("Connecting to MQTT Broker %s:%d...\r\n", MQTT_BROKER_HOSTNAME, MQTT_BROKER_PORT);
+    screen_print("Connecting...", (int)L2);
+    status = nxd_mqtt_client_connect(&az_mqtt_client, &server_ip, MQTT_BROKER_PORT, 60, NX_TRUE, NX_WAIT_FOREVER);
 #endif
-
-    status = nxd_mqtt_client_connect(&mqtt_client, &server_ip, MQTT_BROKER_PORT, 60, NX_TRUE, NX_WAIT_FOREVER);
 
     if (status != NXD_MQTT_SUCCESS)
     {
         printf("ERROR: MQTT Connect failed (0x%08X)\r\n", status);
-        nxd_mqtt_client_delete(&mqtt_client);
-        screen_print("MQTT Conn Fail", L2);
+        nxd_mqtt_client_delete(&az_mqtt_client);
+        screen_print("MQTT Conn Fail", (int)L2);
         return false;
     }
 
     printf("MQTT Connected!\r\n");
-    screen_print("MQTT Connected", L2);
+    screen_print("MQTT Connected", (int)L2);
     is_connected = true;
 
     // Set callback
-    nxd_mqtt_client_receive_notify_set(&mqtt_client, mqtt_message_callback);
+    nxd_mqtt_client_receive_notify_set(&az_mqtt_client, mqtt_message_callback);
 
     // Auto-subscribe
     MQTT_Subscribe(MQTT_SUB_TOPIC);
@@ -164,8 +199,14 @@ bool MQTT_Publish(const char* topic, const char* message)
         return false;
 
     printf("Publishing to '%s': %s\r\n", topic, message);
-    UINT status = nxd_mqtt_client_publish(
-        &mqtt_client, (CHAR*)topic, strlen(topic), (CHAR*)message, strlen(message), NX_FALSE, 0, NX_WAIT_FOREVER);
+    UINT status = nxd_mqtt_client_publish(&az_mqtt_client,
+        (CHAR*)topic,
+        (UINT)strlen(topic),
+        (CHAR*)message,
+        (UINT)strlen(message),
+        NX_FALSE,
+        0,
+        NX_WAIT_FOREVER);
 
     if (status != NXD_MQTT_SUCCESS)
     {
@@ -182,7 +223,7 @@ bool MQTT_Subscribe(const char* topic)
         return false;
 
     printf("Subscribing to '%s'...\r\n", topic);
-    UINT status = nxd_mqtt_client_subscribe(&mqtt_client, (CHAR*)topic, strlen(topic), 0);
+    UINT status = nxd_mqtt_client_subscribe(&az_mqtt_client, (CHAR*)topic, (UINT)strlen(topic), 0);
 
     if (status != NXD_MQTT_SUCCESS)
     {
@@ -195,8 +236,7 @@ bool MQTT_Subscribe(const char* topic)
 
 void MQTT_Check_Message(void)
 {
-    if (!is_connected)
-        return;
+    // NetX Duo handles messages via callback
 }
 
 const char* MQTT_Get_Last_Message(void)
@@ -241,19 +281,17 @@ static void mqtt_message_callback(NXD_MQTT_CLIENT* client_ptr, UINT message_coun
         printf("\r\n[MQTT] Received on '%s': %s\r\n", last_received_topic, last_received_message);
         receive_count++;
 
-        // --- JSON Parsing for LED Control ---
-        // Look for "led": "ON" or "led": "OFF"
-        // This is a simple substring check. Real JSON parsing is better but heavyweight.
+        // LED Control commands
         if (strstr((char*)message_buffer, "\"led\": \"ON\"") != NULL ||
             strstr((char*)message_buffer, "\"led\":\"ON\"") != NULL)
         {
-            printf("[Command] LED ON request detected.\r\n");
+            printf("[Command] LED ON\r\n");
             USER_LED_ON();
         }
         else if (strstr((char*)message_buffer, "\"led\": \"OFF\"") != NULL ||
                  strstr((char*)message_buffer, "\"led\":\"OFF\"") != NULL)
         {
-            printf("[Command] LED OFF request detected.\r\n");
+            printf("[Command] LED OFF\r\n");
             USER_LED_OFF();
         }
     }
@@ -261,10 +299,10 @@ static void mqtt_message_callback(NXD_MQTT_CLIENT* client_ptr, UINT message_coun
 
 int MQTT_Get_Publish_Count(void)
 {
-    return publish_count;
+    return (int)publish_count;
 }
 
 int MQTT_Get_Receive_Count(void)
 {
-    return receive_count;
+    return (int)receive_count;
 }

@@ -11,26 +11,27 @@
 
 // --- WiFi Settings ---
 // REPLACE WITH YOUR WIFI CREDENTIALS
-#define WIFI_SSID       "LOGICHUB-IOT-2.4G"
-#define WIFI_PASSWORD   "L0g1chubI0T@2025!!2G"
+#define WIFI_SSID       ""
+#define WIFI_PASSWORD   ""
 
-// Set to 1 to use Hostname, 0 to use IP Address
-#define MQTT_USE_HOSTNAME  0
+// MQTT Broker Hostname (Replace with your Event Grid Namespace MQTT hostname)
+// Example: your-namespace.westeurope-1.ts.eventgrid.azure.net
+#define MQTT_BROKER_HOSTNAME "your-eventgrid-namespace.ts.eventgrid.azure.net"
 
-// Option A: IP Address String (broker.hivemq.com)
-#define MQTT_BROKER_IP_STRING "52.58.30.91"
+// Set to 1 for Secure MQTT (TLS/8883), 0 for TCP/1883
+#define MQTT_SECURE_CONNECTION 1
 
-// Option B: Hostname (e.g., "test.mosquitto.org")
-#define MQTT_BROKER_HOSTNAME "broker.hivemq.com"
+#if MQTT_SECURE_CONNECTION
+    #define MQTT_BROKER_PORT  8883
+#else
+    #define MQTT_BROKER_PORT  1883
+#endif
 
-#define MQTT_BROKER_PORT  1883
+#define MQTT_CLIENT_ID    "mxchip-test-eventgrid"
+#define MQTT_PUB_TOPIC    "message/fromnanoframework"  
+#define MQTT_SUB_TOPIC    "message/device/#"          
 
-#define MQTT_CLIENT_ID    "MXChip_Sensor_Node"
-#define MQTT_PUB_TOPIC    "mxchip/data"     // Default publish topic
-#define MQTT_PUB_TOPIC    "mxchip/data"     // Default publish topic
-#define MQTT_SUB_TOPIC    "mxchip/commands" // Default subscribe topic
-
-#define MQTT_TOPIC_BUTTON_A "mxchip/buttonA"
-#define MQTT_TOPIC_BUTTON_B "mxchip/buttonB"
+#define MQTT_TOPIC_BUTTON_A "message/buttonA"
+#define MQTT_TOPIC_BUTTON_B "message/buttonB"
 
 #endif // APP_CONFIG_H
