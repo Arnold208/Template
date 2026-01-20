@@ -1,96 +1,89 @@
-# MXCHIP AZ1366 Example Project: RGB Fade and IoT Message Display
+# MXChip AZ3166 Smart Sensor Node
 
-Welcome to the **RGB Fade and IoT Message Display** example project for the MXCHIP AZ1366 development board! This project demonstrates how to control the RGB LED to create a fading effect and display a message on the board's screen, providing a fun and interactive way to learn about embedded systems development.
+Welcome to the **MXChip AZ3166 Smart Sensor Node** project. This comprehensive firmware implementation transforms the MXChip IoT DevKit into a robust, cloud-connected sensor monitoring station. It is designed to demonstrate best practices in embedded systems development, distinctively featuring modular architecture, real-time multitasking, and interactive user interfaces.
 
-## Table of Contents
+## Project Overview
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Requirements](#requirements)
-- [Known Issues](#known-issues)
-- [Credits](#credits)
+This project serves as a production-grade template for building connected devices using the **Azure RTOS (NetX Duo & ThreadX)** stack. Beyond simple demonstrations, it provides a stable foundation for capturing environmental data (Temperature, Humidity, Pressure, Motion) and transmitting it to any MQTT-compatible cloud broker using a flexible, generic data payload system.
 
-## Overview
+## Key Features
 
-The RGB Fade and IoT Message Display example project is designed to showcase the capabilities of the MXCHIP AZ1366 development board. This project demonstrates how to use the board's RGB LED and display to create a visually engaging effect and show a message.
+### 1. Advanced Sensor Integration
+- **Real-Time Monitoring**: Continuous polling of on-board sensors including HTS221 (Temperature/Humidity), LPS22HB (Pressure), and LSM6DSL (Accelerometer/Gyroscope).
+- **Data Abstraction**: A clean `simple_sensor` layer abstracts hardware complexity, providing easy-to-use API calls for application logic.
 
-## Features
+### 2. Interactive User Interface
+- **OLED Display**: A rich, paged interface allows users to cycle through different sensor views using the on-board Buttons (A and B).
+- **Status Feedback**: Clear visual indicators for network connectivity and system status.
+- **MQTT Stats Screen**: Dedicated screen showing Connection Status, Publish Counts (P), and Receive Counts (S).
 
-- **RGB LED Control**: Create a smooth fading effect using the onboard RGB LED.
-- **Message Display**: Display the message "IoT Tuesday" on the onboard screen.
-- **Interactive Learning**: Understand how to control hardware components using embedded C.
+### 3. Generic Cloud Connectivity
+- **Robust MQTT Client**: A custom-built, generic MQTT manager capable of establishing reliable connections to any standard MQTT broker.
+- **Configurable Connection**: Logic to support both direct IP addresses and Hostname resolution (DNS) for the broker.
+- **Universal Payload Support**: Sreams Sensor Data as **JSON** objects.
+- **Bi-directional Communication**: The device not only publishes telemetry but also subscribes to topics, enabling remote command execution.
+- **Remote LED Control**: Control the User LED remotely via MQTT JSON commands.
 
-## Installation
+## Hardware Requirements
 
-### For Windows Users
+- **MXChip IoT DevKit (AZ3166)**: An all-in-one Arduino-compatible board with rich peripherals.
+- Micro-USB Cable for power and debugging.
 
-1. **First Time Setup**:
-   - Run the following command in PowerShell as an Admin:
-     ```powershell
-     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned
-     ```
-   - Type **Y** and press Enter.
+## Getting Started
 
-2. **Install the MXCHIP AZ1366 Toolbox Extension on Vscode**
-    
-3. **Install Drivers**:
-   - Press `F1`, type the command `Mxchip Install Drivers`, and select it.
-   - Confirm the prompt to install `cmake`.
-   - (Note: This step may take some time.)
+### Prerequisites
+1.  **Visual Studio Code**: Ensure you have the latest version installed.
+2.  **MXChip Toolchain**: Install the `MXCHIP AZ1366 Toolbox` extension for VSCode.
+3.  **Drivers**: Use the `Mxchip Install Drivers` command in VSCode to set up CMake and Ninja.
 
-4. **Upload Project**:
-   - Restart VSCode.
-   - Press `F1`, type the command `Mxchip Upload Project`, and select it.
-   - Ensure your MXCHIP is connected to the host machine.
+### Configuration
+Before building, you must configure your network and broker settings. Open `app/app_config.h` and update the following credentials:
 
-### For Linux Users
+```c
+// WiFi Settings
+#define WIFI_SSID       "Your_WiFi_Name"
+#define WIFI_PASSWORD   "Your_WiFi_Password"
 
-1. **Install the MXCHIP AZ1366 Toolbox Extension on Vscode**
+// MQTT Selection (1 = Hostname, 0 = IP)
+#define MQTT_USE_HOSTNAME  1
 
-2. **Install Drivers**:
-   - Press `F1`, type the command `Mxchip Install Drivers`, and select it.
-   - Enter your password to install `cmake`.
+// Option A: IP Address String
+#define MQTT_BROKER_IP_STRING "52.58.30.91"
 
-3. **Upload Project**:
-   - Restart VSCode.
-   - Press `F1`, type the command `Mxchip Upload Project`, and select it.
-   - Ensure your MXCHIP is connected to the host machine.
+// Option B: Hostname (e.g., "broker.hivemq.com")
+#define MQTT_BROKER_HOSTNAME "broker.hivemq.com"
+```
 
-## Usage
+### Building and Flashing
+1.  Open the project directory in VSCode.
+2.  Run the build command:
+    ```bash
+    cmake --build build
+    ```
+3.  Flash by copying the bin file to the device drive (e.g., `H:`):
+    ```bash
+    copy build/app/mxchip_azure_iot.bin H:/
+    ```
 
-1. **Build the Project**:
-   - Open the project in VSCode.
-   - Press `F1`, type and select `Mxchip Build Project`.
+## Usage Guide
 
-2. **Upload the Project**:
-   - Connect your MXCHIP AZ1366 to your computer.
-   - Press `F1`, type and select `Mxchip Upload Project`.
+-   **Navigation**: Press **Button A** to cycle forward through sensor screens (Temperature -> Humidity -> Motion -> Magnetometer -> **MQTT Stats**). Press **Button B** to cycle backward.
+-   **Cloud Data**: The device automatically publishes JSON telemetry to the configured `MQTT_PUB_TOPIC` every 5 seconds.
+    *   *Sample Payload:* `{"device": "AZ3166_Device", "temp": 24.50, "status": "active"}`
+-   **Remote Control**: Publish to `mxchip/commands` to control the LED:
+    *   Turn ON: `{"led": "ON"}`
+    *   Turn OFF: `{"led": "OFF"}`
+-   **Button Events**: The device publishes button press events:
+    *   Button A -> `mxchip/buttonA` -> `{"buttonA": "PRESSED"}`
+    *   Button B -> `mxchip/buttonB` -> `{"buttonB": "PRESSED"}`
 
-3. **Run the Project**:
-   - The RGB LED will start fading through different colors.
-   - The message "IoT Tuesday" will be displayed on the screen.
+## Credits and Attribution
 
-## Requirements
+We would like to extend our sincere gratitude to the original creators and maintainers of the underlying technologies that make this project possible:
 
-- Visual Studio Code version 1.87.0 or higher.
-- Arduino IDE.
-- **For Windows Users**:
-  - Ensure the execution policy is set to RemoteSigned.
-- **For Linux Users**:
-  - Ensure you have the necessary permissions to install software.
+*   **Microsoft Corporation**: For the excellent [Azure RTOS](https://github.com/azure-rtos) (ThreadX, NetX Duo) and the [BSP for the AZ3166](https://github.com/mxchip/MXChip-IoT-DevKit).
+*   **Afrilogic Solutions**: For providing the educational workshop templates.
+*   **STMicroelectronics**: For the high-quality [MEMS sensors and drivers](https://github.com/STMicroelectronics) used in the DevKit.
 
-## Known Issues
-
-- **Long Path Issues on Windows**: Enabling long paths may have security implications. Refer to [this Microsoft documentation](https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file) for more information.
-- **CMake Deprecation Warnings**: Compatibility with CMake < 3.5 will be removed from a future version of CMake. Update the VERSION argument <min> value or use a ...<max> suffix.
-
-## Credits
-
-This project is based on the original work by Microsoft and Eclipse ThreadX. 
-
-- **Microsoft**: [Azure IoT DevKit MXChip](https://learn.microsoft.com/en-us/azure/iot/tutorial-devkit-mxchip-az3166-iot-hub)
-- **Eclipse ThreadX**: [Getting Started with ThreadX](https://github.com/eclipse-threadx/getting-started)
-
-**Enjoy your development with the RGB Fade and IoT Message Display project on MXCHIP AZ1366!**
+---
+*Developed with precision and care for the Embedded IoT Community.*

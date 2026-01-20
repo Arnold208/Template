@@ -10,7 +10,11 @@ set(SOURCES
     console.c
     screen.c
     main.c
- 
+    simple_sensor.c
+    sensor_display.c
+    mqtt_manager.c
+    wwd_networking.c
+    images.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -29,6 +33,12 @@ target_link_libraries(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} 
     PUBLIC 
         .
+        ../../../shared/src
+        ../../../shared/lib/netxduo/addons/mqtt
+        ../../../shared/lib/netxduo/common/inc
+        ../../../shared/lib/netxduo/nx_secure
+        ../../../shared/lib/netxduo/nx_secure/inc
+        ../lib/wiced_sdk/inc
 )
 
 target_link_directories(${PROJECT_NAME} 

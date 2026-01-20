@@ -4,7 +4,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Define directories and file names
 $projectDir = Join-Path $scriptDir "../MXChip/AZ3166/tools"
 $secondScript = "rebuild.bat"
-$binFileDir = Join-Path $scriptDir "MXChip/AZ3166/build/app"
+$binFileDir = Join-Path $scriptDir "../MXChip/AZ3166/build/app"
 $binFileName = "mxchip_azure_iot.bin"
 $driveLabel = "AZ3166"
 
@@ -64,6 +64,7 @@ foreach ($drive in $usbDrivesWithLabel) {
         Copy-Item -Path $binFileName -Destination $mountPath -ErrorAction Stop
         Write-Host "Upload successful to $mountPath"
     } catch {
-        Write-Host "Upload failed to $mountPath: $_"
+        Write-Host "Upload failed to  $mountPath"
     }
 }
+

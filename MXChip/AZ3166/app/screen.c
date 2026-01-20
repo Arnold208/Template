@@ -3,11 +3,10 @@
 
 #include "screen.h"
 
-#include "ssd1306.h"
+// #include "ssd1306.h" // Removed, already in screen.h with correct path
 
 void screen_print(char* str, LINE_NUM line)
 {
-    ssd1306_Fill(Black);
     ssd1306_SetCursor(2, line);
     ssd1306_WriteString(str, Font_11x18, White);
     ssd1306_UpdateScreen();
@@ -20,10 +19,8 @@ void screen_clear()
     ssd1306_UpdateScreen();
 }
 
-
-void screen_printl(char* str, char* str1,LINE_NUM line,LINE_NUM line1)
+void screen_printl(char* str, char* str1, LINE_NUM line, LINE_NUM line1)
 {
-    ssd1306_Fill(Black);
     ssd1306_SetCursor(11, line);
     ssd1306_WriteString(str, Font_11x18, White);
     ssd1306_SetCursor(2, line1);
@@ -33,7 +30,6 @@ void screen_printl(char* str, char* str1,LINE_NUM line,LINE_NUM line1)
 
 void screen_printn(const char* str, unsigned int str_length, LINE_NUM line)
 {
-    ssd1306_Fill(Black);
     ssd1306_SetCursor(2, line);
 
     for (unsigned int i = 0; i < str_length; ++i)
@@ -75,10 +71,10 @@ void screen_printn(const char* str, unsigned int str_length, LINE_NUM line)
 //     ssd1306_UpdateScreen();
 // }
 
- void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1)
+void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1)
 {
     // Define logo dimensions
-    const uint8_t logo_width = 60;
+    const uint8_t logo_width  = 60;
     const uint8_t logo_height = 32;
 
     // Calculate the x and y positions for centering the logo
@@ -103,5 +99,27 @@ void screen_printn(const char* str, unsigned int str_length, LINE_NUM line)
     ssd1306_Line(x + 40, y + 16, x + 20, y + 24, Black);
 
     // Update the screen to show the changes
+    ssd1306_UpdateScreen();
+}
+
+void screen_draw_bitmap(int x, int y, const unsigned char* bitmap, int w, int h)
+{
+    for (int i = 0; i < h; i++)
+    {
+        for (int j = 0; j < w; j++)
+        {
+            // Assuming 1 bit per pixel, row-major
+            int byte_idx = (i * ((w + 7) / 8)) + (j / 8);
+            int bit_idx  = 7 - (j % 8);
+            if (bitmap[byte_idx] & (1 << bit_idx))
+            {
+                ssd1306_DrawPixel(x + j, y + i, White);
+            }
+            else
+            {
+                ssd1306_DrawPixel(x + j, y + i, Black);
+            }
+        }
+    }
     ssd1306_UpdateScreen();
 }

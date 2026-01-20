@@ -1,0 +1,40 @@
+# Build directories
+build/
+bin/
+obj/
+out/
+
+# Binary and generated files
+*.bin
+*.elf
+*.hex
+*.map
+*.lst
+*.obj
+*.o
+*.a
+*.dep
+*.svd
+
+# Editor directories
+.vscode/
+.vs/
+.idea/
+*.swp
+*.code-workspace
+.history/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and error reports
+*.log
+err.txt
+errors.txt
+cmake_error.log
+
+# Workspace specific
+MXChip/AZ3166/build/
+MXChip/AZ3166/.vs/
+MXChip/AZ3166/.vscode/

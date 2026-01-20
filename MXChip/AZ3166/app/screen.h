@@ -1,7 +1,8 @@
 /* Copyright (c) Microsoft Corporation.
    Licensed under the MIT License. */
 #include <stdint.h>  
-#include "ssd1306.h"
+#include <stdint.h>  
+#include "../lib/mxchip_bsp/ssd1306/ssd1306.h" // Use relative path to avoid include issues
 
 #ifndef _SCREEN_H
 #define _SCREEN_H
@@ -19,6 +20,7 @@ void screen_print(char* str, LINE_NUM line);
 void screen_printn(const char* str, unsigned int str_length, LINE_NUM line);
 void screen_printl(char* str, char* str1,LINE_NUM line,LINE_NUM line1);
 void draw_youtube_logo(LINE_NUM line0, LINE_NUM line1);
+void screen_draw_bitmap(int x, int y, const unsigned char* bitmap, int w, int h);
 void screen_clear();
 
 #endif // _SCREEN_H

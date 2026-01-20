@@ -79,6 +79,9 @@ void board_init(void)
     /* Initialize STM32F412 HAL library.  */
     HAL_Init();
 
+    // Give hardware peripherals time to power up
+    HAL_Delay(100);
+
     /* Configure the system clock to 96 MHz.  */
     SystemClock_Config();
 
@@ -319,7 +322,7 @@ static void UART_Console_Init(void)
     }
 }
 
-//ystatic int val;
+// ystatic int val;
 
 __weak void button_a_callback()
 {
