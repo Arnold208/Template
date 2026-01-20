@@ -1,0 +1,15 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/shared_src/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/threadx/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/threadx/ports/cortex_m4/gnu/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/threadx/common/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/stm32cubef4/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/lib/mxchip_bsp/cmake_install.cmake",
+		"C:/Users/ArnoldSylvianKimkpe/Documents/Afrilogic_Solutions/workshop/Template/MXChip/AZ3166/build/app/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

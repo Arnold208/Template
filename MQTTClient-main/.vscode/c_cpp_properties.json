@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "windows-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/shared/lib/netxduo/addons/mqtt",
+                "${workspaceFolder}/MXChip/AZ3166/lib/stm32cubef4/Drivers/STM32F4xx_HAL_Driver/Inc"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:\\Program Files\\CodeBlocks\\MinGW\\bin\\gcc.exe",
+            "cStandard": "c17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "windows-gcc-x64"
+        }
+    ],
+    "version": 4
+}

@@ -17,11 +17,11 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME}
     azrtos::threadx
-    # azrtos::netxduo
+    azrtos::netxduo
 
     stm32cubef4
     mxchip_bsp
-    # wiced_sdk
+    wiced_sdk
     app_common
     # jsmn
 )
