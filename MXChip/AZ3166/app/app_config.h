@@ -14,22 +14,40 @@
 #define WIFI_SSID       ""
 #define WIFI_PASSWORD   ""
 
-// Set to 1 to use Hostname, 0 to use IP Address
-#define MQTT_USE_HOSTNAME  0
+// --- Azure Event Grid V2 MQTT Settings ---
 
-// Option A: IP Address String (broker.hivemq.com)
-#define MQTT_BROKER_IP_STRING "52.58.30.91"
+// 1. MQTT Broker Hostname (Event Grid Namespace MQTT Hostname)
+// Example: "semor-eventgrid.eastus-1.ts.eventgrid.azure.net"
+#define MQTT_BROKER_HOSTNAME "your-eventgrid-namespace.region.ts.eventgrid.azure.net"
 
-// Option B: Hostname (e.g., "test.mosquitto.org")
-#define MQTT_BROKER_HOSTNAME "broker.hivemq.com"
+// 2. MQTT Broker Port (Secure MQTT is 8883)
+#define MQTT_BROKER_PORT  8883
 
-#define MQTT_BROKER_PORT  1883
+// 3. Client ID (Device Name in Event Grid)
+// Must match the client certificate Subject Name (CN) or SAN
+#define MQTT_CLIENT_ID    "mxchip-sensor-01"
 
-#define MQTT_CLIENT_ID    "MXChip_Sensor_Node"
-#define MQTT_PUB_TOPIC    "mxchip/data"     // Default publish topic
-#define MQTT_SUB_TOPIC    "mxchip/commands" // Default subscribe topic
+// 4. Username (Required by Event Grid)
+// Format varies, but often same as Client ID or specific format for custom authn.
+// For mTLS, this is checked against the certificate.
+#define MQTT_USERNAME     "mxchip-sensor-01"
 
-#define MQTT_TOPIC_BUTTON_A "mxchip/buttonA"
-#define MQTT_TOPIC_BUTTON_B "mxchip/buttonB"
+// 5. Password (Usually empty for mTLS, required for Token/SAS)
+#define MQTT_PASSWORD     ""
+
+// 6. Topics (Event Grid Namespace Topic Structure)
+// Publish Topic: devices/{deviceId}/messages/events
+#define MQTT_PUB_TOPIC    "devices/mxchip-sensor-01/messages/events"
+
+// Subscribe Topic: devices/{deviceId}/messages/c2d
+#define MQTT_SUB_TOPIC    "devices/mxchip-sensor-01/messages/c2d"
+
+// Button Topics
+#define MQTT_TOPIC_BUTTON_A "devices/mxchip-sensor-01/messages/buttonA"
+#define MQTT_TOPIC_BUTTON_B "devices/mxchip-sensor-01/messages/buttonB"
+
+// --- Secure Connection Flag ---
+// Set to 1 to enable TLS/SSL (Required for Event Grid)
+#define MQTT_SECURE_CONNECTION 1
 
 #endif // APP_CONFIG_H

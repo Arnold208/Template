@@ -19,4 +19,8 @@ add_subdirectory(${SHARED_LIB_DIR}/netxduo netxduo)
 
 add_subdirectory(stm32cubef4)
 add_subdirectory(mxchip_bsp)
-add_subdirectory(wiced_sdk)
+
+# Inline wiced_sdk definition (more robust than imported)
+add_library(wiced_sdk INTERFACE)
+target_include_directories(wiced_sdk INTERFACE wiced_sdk/inc)
+target_link_libraries(wiced_sdk INTERFACE ${CMAKE_CURRENT_LIST_DIR}/wiced_sdk/lib/libwiced_sdk_bin.a)
